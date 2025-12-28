@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://bunkercache.github.io/memoir/schema/config.json",
-  "title": "Memoir Configuration",
+  "$id": "https://bunkercache.github.io/opencode-memoir/schema/config.json",
+  "title": "OpenCode Memoir Configuration",
   "description": "Configuration schema for the Memoir OpenCode plugin - a smart memory management system with nested aggregation support",
   "type": "object",
   "additionalProperties": false,

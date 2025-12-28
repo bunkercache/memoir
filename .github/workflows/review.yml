@@ -11,7 +11,7 @@ env:
 jobs:
   review:
     if: |
-      github.repository == 'bunkercache/memoir' &&
+      github.repository == 'bunkercache/opencode-memoir' &&
       github.event.issue.pull_request &&
       startsWith(github.event.comment.body, '/review') &&
       contains(fromJson('["OWNER","MEMBER"]'), github.event.comment.author_association)

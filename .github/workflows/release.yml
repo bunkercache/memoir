@@ -16,7 +16,7 @@ jobs:
   process:
     # Skip if commit message contains [skip ci] or not the main repo
     if: |
-      github.repository == 'bunkercache/memoir' &&
+      github.repository == 'bunkercache/opencode-memoirde-memoir' &&
       !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     outputs:

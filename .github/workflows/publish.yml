@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   publish:
-    if: github.repository == 'bunkercache/memoir'
+    if: github.repository == 'bunkercache/opencode-memoir'
     runs-on: ubuntu-latest
     steps:
       - name: Parse inputs
@@ -68,7 +68,7 @@ jobs:
           BASE_VERSION="${{ steps.base-version.outputs.version }}"
 
           # Get existing versions from npm (handle case where package doesn't exist yet)
-          VERSIONS=$(npm view @bunkercache/memoir versions --json 2>/dev/null || echo "[]")
+          VERSIONS=$(npm view @bunkercache/opencode-memoir versions --json 2>/dev/null || echo "[]")
 
           # Find highest -next.N for this base version
           NEXT_NUM=$(echo "$VERSIONS" | node -e "
@@ -153,8 +153,8 @@ jobs:
 
           if [[ "$TAG" == "next" ]]; then
             gh pr comment "${PR_NUMBER}" --repo "${{ github.repository }}" --body \
-              "Published [\`@bunkercache/memoir@${VERSION}\`](https://www.npmjs.com/package/@bunkercache/memoir/v/${VERSION}) to npm by @${TRIGGERED_BY} at ${TIMESTAMP} - [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${VERSION})"
+              "Published [\`@bunkercache/opencode-memoir@${VERSION}\`](https://www.npmjs.com/package/@bunkercache/opencode-memoir/v/${VERSION}) to npm by @${TRIGGERED_BY} at ${TIMESTAMP} - [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${VERSION})"
           else
             gh pr comment "${PR_NUMBER}" --repo "${{ github.repository }}" --body \
-              "Published [\`@bunkercache/memoir@${VERSION}\`](https://www.npmjs.com/package/@bunkercache/memoir/v/${VERSION}) to npm by @${TRIGGERED_BY} at ${TIMESTAMP}"
+              "Published [\`@bunkercache/opencode-memoir@${VERSION}\`](https://www.npmjs.com/package/@bunkercache/opencode-memoir/v/${VERSION}) to npm by @${TRIGGERED_BY} at ${TIMESTAMP}"
           fi

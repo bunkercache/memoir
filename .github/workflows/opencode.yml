@@ -13,7 +13,7 @@ env:
 jobs:
   opencode:
     if: |
-      github.repository == 'bunkercache/memoir' &&
+      github.repository == 'bunkercache/opencode-memoir' &&
       (
         contains(github.event.comment.body, ' /oc') ||
         startsWith(github.event.comment.body, '/oc') ||

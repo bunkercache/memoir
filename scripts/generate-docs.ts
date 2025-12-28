@@ -268,7 +268,7 @@ function generateHtml(content: {
 <body>
   <div class="container">
     <header>
-      <h1>@bunkercache/memoir</h1>
+      <h1>@bunkercache/opencode-memoir</h1>
       <span class="version">${escapeHtml(content.version)}</span>
     </header>
     
@@ -278,7 +278,7 @@ function generateHtml(content: {
       <a href="#configuration">Configuration</a>
       <a href="#tools">Tools</a>
       <a href="./schema/config.schema.json">JSON Schema</a>
-      <a href="https://github.com/bunkercache/memoir">GitHub</a>
+      <a href="https://github.com/bunkercache/opencode-memoir">GitHub</a>
     </nav>
 
     <main>
@@ -301,7 +301,7 @@ function generateHtml(content: {
         <h2>Installation</h2>
         <p>Add to your <code>opencode.json</code>:</p>
         <pre><code>{
-  "plugin": ["@bunkercache/memoir"]
+  "plugin": ["@bunkercache/opencode-memoir"]
 }</code></pre>
       </section>
 
@@ -344,8 +344,8 @@ memoir_history({ query: "bug fix", session_id: "ses_xxx" })</code></pre>
 
     <footer>
       <p>Generated for version ${escapeHtml(content.version)} · 
-         <a href="https://github.com/bunkercache/memoir">Source</a> · 
-         <a href="https://www.npmjs.com/package/@bunkercache/memoir">npm</a>
+         <a href="https://github.com/bunkercache/opencode-memoir">Source</a> · 
+         <a href="https://www.npmjs.com/package/@bunkercache/opencode-memoir">npm</a>
       </p>
     </footer>
   </div>

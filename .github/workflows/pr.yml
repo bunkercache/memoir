@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   Check:
-    if: github.repository == 'bunkercache/memoir'
+    if: github.repository == 'bunkercache/opencode-memoir'
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout

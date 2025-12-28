@@ -15,7 +15,7 @@ jobs:
     # Trigger on PR edit when checkbox is checked
     # Only on release PRs created by release-please
     if: |
-      github.repository == 'bunkercache/memoir' &&
+      github.repository == 'bunkercache/opencode-memoir' &&
       github.event_name == 'pull_request' &&
       startsWith(github.event.pull_request.title, 'chore') &&
       contains(github.event.pull_request.title, 'release') &&
@@ -75,7 +75,7 @@ jobs:
     # Only on release PRs
     # Only OWNER or MEMBER can trigger
     if: |
-      github.repository == 'bunkercache/memoir' &&
+      github.repository == 'bunkercache/opencode-memoir' &&
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
       startsWith(github.event.comment.body, '/release-next') &&

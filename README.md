@@ -1,4 +1,4 @@
-# @bunkercache/memoir
+# @bunkercache/opencode-memoir
 
 A local-first, repo-scoped memory plugin for OpenCode. Provides persistent project learnings and hierarchical session history with "blockchain-style" compaction.
 
@@ -13,14 +13,14 @@ A local-first, repo-scoped memory plugin for OpenCode. Provides persistent proje
 ## Installation
 
 ```bash
-bun add @bunkercache/memoir
+bun add @bunkercache/opencode-memoir
 ```
 
 Add to your OpenCode config (`~/.config/opencode/config.json`):
 
 ```json
 {
-  "plugins": ["@bunkercache/memoir"]
+  "plugins": ["@bunkercache/opencode-memoir"]
 }
 ```
 
@@ -73,7 +73,7 @@ Create `~/.config/opencode/memoir.json` (global) or `<repo>/.opencode/memoir.jso
 
 ```json
 {
-  "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+  "$schema": "https://bunkercache.github.io/opencode-memoir/schema/config.json",
   "memory": {
     "maxInject": 10,
     "maxSearchResults": 20,

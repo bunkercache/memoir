@@ -7,7 +7,7 @@ on:
 
 jobs:
   stale:
-    if: github.repository == 'bunkercache/memoir'
+    if: github.repository == 'bunkercache/opencode-memoir'
     runs-on: ubuntu-latest
     permissions:
       issues: write
