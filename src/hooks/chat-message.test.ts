@@ -120,15 +120,16 @@ describe('handleChatMessage', () => {
     });
 
     /**
-     * Objective: Verify that session history chunks are included in context injection.
-     * This test ensures past work summaries are provided to help the LLM.
+     * Objective: Verify that session history from OTHER sessions is NOT injected.
+     * This prevents polluting new sessions with potentially irrelevant context.
+     * Users can explicitly search for past work using memoir_history.
      */
-    it('should inject session history when summary chunks exist', async () => {
-      // Arrange: Create a summary chunk in the database
+    it('should NOT inject session history from other sessions', async () => {
+      // Arrange: Create a summary chunk in a different session
       const { getChunkService } = await import('../chunks/index.ts');
       const chunkService = getChunkService();
 
-      // Create a summary chunk (depth > 0 with summary)
+      // Create a summary chunk in a past session
       const chunk = chunkService.create('past-session', {
         messages: [
           {
@@ -146,7 +147,7 @@ describe('handleChatMessage', () => {
       const repo = new ChunkRepository(db);
       repo.update(chunk.id, { status: 'compacted' });
 
-      const summaryChunk = repo.create({
+      repo.create({
         sessionId: 'past-session',
         content: { messages: [], metadata: {} },
         depth: 1,
@@ -154,17 +155,14 @@ describe('handleChatMessage', () => {
       });
 
       const input = createMockInput('new-session');
-      const output = createMockOutput([createMockTextPart('Continue from before')], 'new-session');
+      const output = createMockOutput([createMockTextPart('Hello')], 'new-session');
 
       // Act
       await handleChatMessage(input, output);
 
-      // Assert: Should include session history section
-      const injectedPart = output.parts[0] as TextPart;
-      expect(injectedPart.synthetic).toBe(true);
-      expect(injectedPart.text).toContain('Recent Session History');
-      expect(injectedPart.text).toContain(summaryChunk.id);
-      expect(injectedPart.text).toContain('Implemented a new feature');
+      // Assert: Should NOT inject session history (only 1 part - the original)
+      expect(output.parts.length).toBe(1);
+      expect((output.parts[0] as TextPart).text).toBe('Hello');
     });
 
     /**

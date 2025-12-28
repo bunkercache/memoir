@@ -4,12 +4,10 @@
  * Handles the chat.message hook to:
  * - Inject relevant memories on first message of a session
  * - Detect memory keywords and add nudge messages
- * - Track messages for chunk creation
  */
 
-import type { Memory, Chunk } from '../types.ts';
+import type { Memory } from '../types.ts';
 import { getMemoryService } from '../memory/index.ts';
-import { getChunkService } from '../chunks/index.ts';
 
 // =============================================================================
 // TYPES
@@ -97,61 +95,20 @@ Choose an appropriate type: "preference", "pattern", "gotcha", "fact", or "learn
 // =============================================================================
 
 /**
- * Formats a chunk summary for display.
- *
- * @param chunk - The chunk to summarize
- * @returns A brief summary string
- */
-function formatChunkSummary(chunk: Chunk): string {
-  if (chunk.summary) {
-    return chunk.summary;
-  }
-
-  // Fallback: create summary from metadata
-  const messageCount = chunk.content.messages.length;
-  const files = chunk.content.metadata.files_modified?.length || 0;
-  const tools = chunk.content.metadata.tools_used?.slice(0, 3).join(', ') || 'none';
-
-  return `${messageCount} messages, ${files} files modified, tools: ${tools}`;
-}
-
-/**
- * Formats recent session history for context injection.
- *
- * @param chunks - Array of recent chunks with summaries
- * @returns Formatted string for session history, or empty string if none
- */
-function formatSessionHistory(chunks: Chunk[]): string {
-  if (chunks.length === 0) {
-    return '';
-  }
-
-  const lines = chunks.map((c) => {
-    const date = new Date(c.createdAt * 1000).toLocaleDateString();
-    return `- [${c.id}] (${date}): ${formatChunkSummary(c)}`;
-  });
-
-  return `\n## Recent Session History
-The following past work may be relevant:
-
-${lines.join('\n')}
-
-Use \`memoir_expand({ chunk_id: "ch_xxx" })\` to see full details of any chunk.`;
-}
-
-/**
  * Formats the complete context injection for first message.
  *
  * Includes:
- * - Relevant project memories
- * - Recent session history with chunk references
+ * - Relevant project memories (preferences, patterns, gotchas, facts)
  * - Available tools overview
  *
+ * Note: Session history is NOT injected automatically to avoid polluting
+ * new sessions with potentially irrelevant context. Use memoir_history
+ * to explicitly search for relevant past work when needed.
+ *
  * @param memories - Relevant memories to inject
- * @param recentChunks - Recent chunks with summaries
  * @returns Formatted context string
  */
-function formatContextInjection(memories: Memory[], recentChunks: Chunk[]): string {
+function formatContextInjection(memories: Memory[]): string {
   const sections: string[] = [];
 
   // Project memories section
@@ -163,28 +120,12 @@ The following memories are relevant to this conversation:
 ${memoryLines.join('\n')}`);
   }
 
-  // Session history section
-  const historySection = formatSessionHistory(recentChunks);
-  if (historySection) {
-    sections.push(historySection);
-  }
-
-  // Tools section (always include if we have any content)
+  // Tools section (always include if we have memories)
   if (sections.length > 0) {
     sections.push(`## Memoir Tools
 - \`memoir\` - Add or search project memories
-- \`memoir_history\` - Search past sessions for relevant work (returns compact summaries)
-- \`memoir_expand\` - Expand a [ch_xxx] reference to see full details
-  - Use \`preview_only: true\` to check size before full expansion
-
-**Context Budget Tip**: Expanded chunks can be large (1000-10000+ tokens each).
-When exploring history or analyzing multiple chunks, consider delegating to a subagent:
-\`\`\`
-Task({ 
-  prompt: "Use memoir_history and memoir_expand to find and analyze past work on [topic]",
-  subagent_type: "explore"
-})
-\`\`\``);
+- \`memoir_history\` - Browse/search session history (current session by default, use all_sessions: true for past work)
+- \`memoir_expand\` - Expand a chunk ID to see full details`);
   }
 
   return sections.join('\n\n');
@@ -260,24 +201,15 @@ export async function handleChatMessage(
     return;
   }
 
-  // First message: inject relevant memories and session history
+  // First message: inject relevant memories (not session history)
   const isFirstMessage = !injectedSessions.has(sessionID);
   if (isFirstMessage) {
     injectedSessions.add(sessionID);
     const memories = memoryService.searchRelevant(messageText);
 
-    // Get recent summary chunks for context (may fail if service not initialized)
-    let recentChunks: Chunk[] = [];
-    try {
-      const chunkService = getChunkService();
-      recentChunks = chunkService.getRecentSummaryChunks(5);
-    } catch {
-      // ChunkService not initialized yet, skip history injection
-    }
-
-    // Inject context if we have memories or history
-    if (memories.length > 0 || recentChunks.length > 0) {
-      const contextText = formatContextInjection(memories, recentChunks);
+    // Inject context if we have relevant memories
+    if (memories.length > 0) {
+      const contextText = formatContextInjection(memories);
       const contextPart = createSyntheticPart(sessionID, messageID || '', contextText);
       output.parts.unshift(contextPart);
     }
