@@ -7,5 +7,12 @@
   "include-component-in-tag": false,
   "bump-minor-pre-major": true,
   "release-type": "node",
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "chore", "section": "Miscellaneous" }
+  ],
   "pull-request-footer": "\n---\n\n- [ ] **Publish preview release** — Check this box to publish a `-next.X` build to npm\n"
 }
