@@ -17,13 +17,13 @@
     "type": "git",
     "url": "git+https://github.com/bunkercache/memoir.git"
   },
+  "license": "MIT",
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "files": [
-    "dist",
-    "src/version.ts"
+    "dist"
   ],
   "dependencies": {
     "@opencode-ai/plugin": "1.0.204",
