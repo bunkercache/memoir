@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/bunkercache/opencode-memoir/compare/v0.3.1...v0.4.0) (2025-12-28)
+
+
+### Features
+
+* show toast notification when memory is saved ([#38](https://github.com/bunkercache/opencode-memoir/issues/38)) ([ac39831](https://github.com/bunkercache/opencode-memoir/commit/ac398317692d58c97461d68752ce757bbf9bd83b))
+
 ## [0.3.1](https://github.com/bunkercache/opencode-memoir/compare/v0.3.0...v0.3.1) (2025-12-28)
 
 
