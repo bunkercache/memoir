@@ -19,7 +19,7 @@ env:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -110,6 +110,24 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Create GitHub prerelease
+        if: steps.inputs.outputs.tag == 'next' && steps.inputs.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.published.outputs.version }}"
+          PR_NUMBER="${{ steps.inputs.outputs.pr_number }}"
+
+          # Extract changelog from the release PR body
+          PR_BODY=$(gh pr view "${PR_NUMBER}" --repo "${{ github.repository }}" --json body -q '.body')
+
+          # Create prerelease with the PR changelog
+          gh release create "v${VERSION}" \
+            --repo "${{ github.repository }}" \
+            --title "v${VERSION}" \
+            --notes "${PR_BODY}" \
+            --prerelease
+
       - name: Post tracking comment
         if: steps.inputs.outputs.pr_number != ''
         env:
@@ -119,28 +137,12 @@ jobs:
           TRIGGERED_BY="${{ steps.inputs.outputs.triggered_by }}"
           TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
           PR_NUMBER="${{ steps.inputs.outputs.pr_number }}"
+          TAG="${{ steps.inputs.outputs.tag || 'latest' }}"
 
-          # Check if tracking comment exists
-          COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
-            --jq '.[] | select(.body | startswith("🚀 **Preview release")) | .id' | head -1)
-
-          NEW_ROW="| \`${VERSION}\` | \`next\` | @${TRIGGERED_BY} | ${TIMESTAMP} |"
-
-          if [[ -n "$COMMENT_ID" ]]; then
-            # Append to existing comment
-            EXISTING=$(gh api "repos/${{ github.repository }}/issues/comments/${COMMENT_ID}" -q '.body')
-            NEW_BODY="${EXISTING}
-          ${NEW_ROW}"
-            gh api "repos/${{ github.repository }}/issues/comments/${COMMENT_ID}" \
-              -X PATCH -f body="$NEW_BODY"
+          if [[ "$TAG" == "next" ]]; then
+            gh pr comment "${PR_NUMBER}" --repo "${{ github.repository }}" --body \
+              "Published [\`@bunkercache/memoir@${VERSION}\`](https://www.npmjs.com/package/@bunkercache/memoir/v/${VERSION}) to npm by @${TRIGGERED_BY} at ${TIMESTAMP} - [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${VERSION})"
           else
-            # Create new comment
-            BODY="🚀 **Preview releases published**
-
-          | Version | Tag | Published By | Timestamp |
-          | ------- | --- | ------------ | --------- |
-          ${NEW_ROW}
-
-          Install with: \`npm install @bunkercache/memoir@next\`"
-            gh pr comment "${PR_NUMBER}" --body "$BODY"
+            gh pr comment "${PR_NUMBER}" --repo "${{ github.repository }}" --body \
+              "Published [\`@bunkercache/memoir@${VERSION}\`](https://www.npmjs.com/package/@bunkercache/memoir/v/${VERSION}) to npm by @${TRIGGERED_BY} at ${TIMESTAMP}"
           fi
