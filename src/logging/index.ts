@@ -22,16 +22,18 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
 /**
  * OpenCode client interface for logging.
  */
+interface OpenCodeLogOptions {
+  body: {
+    service: string;
+    level: LogLevel;
+    message: string;
+    extra?: Record<string, unknown>;
+  };
+}
+
 interface OpenCodeClient {
   app: {
-    log: (options: {
-      body: {
-        service: string;
-        level: LogLevel;
-        message: string;
-        extra?: Record<string, unknown>;
-      };
-    }) => Promise<unknown>;
+    log(_options: OpenCodeLogOptions): Promise<unknown>;
   };
 }
 

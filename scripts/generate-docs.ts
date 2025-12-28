@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+/* eslint-disable no-console */
 /**
  * Docs Generator
  *
@@ -9,8 +10,8 @@
  * - package.json - Version info
  */
 
-import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 // =============================================================================
 // Configuration
