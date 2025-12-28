@@ -130,8 +130,9 @@ jobs:
           # We need to extract just the changelog between the two --- dividers
           PR_BODY=$(gh pr view "${PR_NUMBER}" --repo "${{ github.repository }}" --json body -q '.body')
 
-          # Extract content between first and last --- dividers, then replace version
-          CHANGELOG=$(echo "$PR_BODY" | awk '/^---$/{if(++n==1)start=NR+1; last=NR} END{if(start && last>start) for(i=start;i<last;i++) print lines[i]} {lines[NR]=$0}' | sed "s/${BASE_VERSION}/${VERSION}/g")
+          # Extract content between first and last --- dividers
+          # Replace version only in the heading line (## [version]), not in compare URLs
+          CHANGELOG=$(echo "$PR_BODY" | awk '/^---$/{if(++n==1)start=NR+1; last=NR} END{if(start && last>start) for(i=start;i<last;i++) print lines[i]} {lines[NR]=$0}' | sed "s/^## \[${BASE_VERSION}\]/## [${VERSION}]/")
 
           # Create prerelease with the cleaned changelog
           gh release create "v${VERSION}" \
