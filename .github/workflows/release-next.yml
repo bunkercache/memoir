@@ -56,6 +56,7 @@ jobs:
             {
               "tag": "next",
               "pr_number": "${{ github.event.pull_request.number }}",
+              "ref": "${{ github.event.pull_request.head.ref }}",
               "triggered_by": "${{ github.event.sender.login }}"
             }
 
@@ -95,6 +96,14 @@ jobs:
             exit 1
           fi
 
+      - name: Get PR head ref
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REF=$(gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json headRefName -q '.headRefName')
+          echo "ref=$REF" >> $GITHUB_OUTPUT
+
       - name: React to comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -111,5 +120,6 @@ jobs:
             {
               "tag": "next",
               "pr_number": "${{ github.event.issue.number }}",
+              "ref": "${{ steps.pr.outputs.ref }}",
               "triggered_by": "${{ github.event.comment.user.login }}"
             }
