@@ -361,6 +361,66 @@ export class ChunkService {
   getRecentSummaryChunks(limit: number = 5): Chunk[] {
     return this.repository.getRecentSummaryChunks(limit);
   }
+
+  /**
+   * Gets recent chunks, optionally filtered by session.
+   *
+   * Returns chunks ordered by creation time (most recent first).
+   * Useful for browsing history without a search query.
+   *
+   * @param options - Options for filtering (sessionId, limit)
+   * @returns Array of recent chunks
+   */
+  getRecentChunks(options?: { sessionId?: string; limit?: number }): Chunk[] {
+    const limit = options?.limit ?? 10;
+
+    let sql = `
+      SELECT id, session_id, parent_id, depth, child_refs, content, summary,
+             status, created_at, finalized_at, compacted_at, embedding
+      FROM chunks
+    `;
+
+    const params: (string | number)[] = [];
+
+    if (options?.sessionId) {
+      sql += ' WHERE session_id = ?';
+      params.push(options.sessionId);
+    }
+
+    sql += ' ORDER BY created_at DESC LIMIT ?';
+    params.push(limit);
+
+    const stmt = this.db.prepare(sql);
+    const rows = stmt.all(...params) as Array<{
+      id: string;
+      session_id: string;
+      parent_id: string | null;
+      depth: number;
+      child_refs: string | null;
+      content: string;
+      summary: string | null;
+      status: string;
+      created_at: number;
+      finalized_at: number | null;
+      compacted_at: number | null;
+      embedding: Uint8Array | null;
+    }>;
+
+    return rows.map((row) => ({
+      id: row.id,
+      sessionId: row.session_id,
+      parentId: row.parent_id,
+      depth: row.depth,
+      childRefs: row.child_refs ? (JSON.parse(row.child_refs) as string[]) : null,
+      content: JSON.parse(row.content) as ChunkContent,
+      summary: row.summary,
+      status: row.status as ChunkStatus,
+      createdAt: row.created_at,
+      finalizedAt: row.finalized_at,
+      compactedAt: row.compacted_at,
+      embedding: row.embedding,
+    }));
+  }
 }
 
 /** Singleton instance of the chunk service */
