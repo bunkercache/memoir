@@ -14,5 +14,6 @@
     { "type": "docs", "section": "Documentation" },
     { "type": "chore", "section": "Miscellaneous" }
   ],
-  "pull-request-footer": "\n---\n\n- [ ] **Publish preview release** — Check this box to publish a `-next.X` build to npm\n"
+  "pull-request-header": "",
+  "pull-request-footer": "- [ ] **Publish preview release** — Check this box to publish a `-next.X` build to npm"
 }

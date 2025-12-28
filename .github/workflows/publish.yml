@@ -119,13 +119,15 @@ jobs:
           PR_NUMBER="${{ steps.inputs.outputs.pr_number }}"
 
           # Extract changelog from the release PR body
+          # Remove everything after the first "---" divider (footer with checkbox)
           PR_BODY=$(gh pr view "${PR_NUMBER}" --repo "${{ github.repository }}" --json body -q '.body')
+          CHANGELOG=$(echo "$PR_BODY" | sed '/^---$/,$d')
 
-          # Create prerelease with the PR changelog
+          # Create prerelease with the cleaned changelog
           gh release create "v${VERSION}" \
             --repo "${{ github.repository }}" \
             --title "v${VERSION}" \
-            --notes "${PR_BODY}" \
+            --notes "${CHANGELOG}" \
             --prerelease
 
       - name: Post tracking comment
