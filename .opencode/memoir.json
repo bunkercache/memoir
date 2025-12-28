@@ -1,0 +1,6 @@
+{
+  "$schema": "../schema/config.schema.json",
+  "logging": {
+    "debug": true
+  }
+}

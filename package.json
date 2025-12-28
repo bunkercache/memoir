@@ -1,10 +1,10 @@
 {
-  "name": "{{pluginName}}",
+  "name": "@bunkercache/memoir",
   "version": "0.1.0",
-  "description": "{{description}}",
+  "description": "A smart memory management plugin for OpenCode that supports nested aggregation of memory, summaries, and file changes that compact in layers with upstream references for lookups.",
   "author": {
-    "name": "{{authorName}}",
-    "email": "{{authorEmail}}"
+    "name": "Chris Tunbridge",
+    "email": "967304+Destreyf@users.noreply.github.com"
   },
   "type": "module",
   "exports": {
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "{{repositoryUrl}}"
+    "url": "git+https://github.com/bunkercache/memoir.git"
   },
   "publishConfig": {
     "access": "public",
@@ -26,11 +26,12 @@
     "src/version.ts"
   ],
   "dependencies": {
-    "@opencode-ai/plugin": "1.0.85"
+    "@opencode-ai/plugin": "1.0.204",
+    "sqlite-vec": "^0.1.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
-    "@types/node": "^20.11.5",
+    "@types/node": "^22.10.5",
     "@typescript-eslint/eslint-plugin": "8.47.0",
     "@typescript-eslint/parser": "8.47.0",
     "bun-types": "latest",
@@ -38,6 +39,7 @@
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-prettier": "^5.1.3",
     "prettier": "^3.2.4",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.47.0",
     "vitest": "^3.2.4"
   }

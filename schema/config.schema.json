@@ -1,0 +1,398 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://bunkercache.github.io/memoir/schema/config.json",
+  "title": "Memoir Configuration",
+  "description": "Configuration schema for the Memoir OpenCode plugin - a smart memory management system with nested aggregation support",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for editor support"
+    },
+    "memory": {
+      "type": "object",
+      "description": "Project memory system configuration",
+      "additionalProperties": false,
+      "properties": {
+        "maxInject": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50,
+          "default": 10,
+          "description": "Maximum number of memories to inject into context on the first message of a session"
+        },
+        "maxSearchResults": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20,
+          "description": "Maximum number of memories to return from search operations"
+        },
+        "keywordDetection": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic detection of 'remember this' style keywords to trigger memory saves"
+        },
+        "customKeywords": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 2
+          },
+          "default": [],
+          "description": "Additional keywords to trigger memory save (in addition to built-in patterns like 'remember', 'don't forget', etc.)"
+        }
+      }
+    },
+    "chunks": {
+      "type": "object",
+      "description": "Session history chunk system configuration",
+      "additionalProperties": false,
+      "properties": {
+        "maxContentSize": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 200000,
+          "default": 50000,
+          "description": "Maximum size in characters for a single chunk's content before it should be split"
+        },
+        "maxCompactionContext": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 10,
+          "description": "Maximum number of chunk summaries to include in the compaction context"
+        },
+        "autoArchiveDays": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Automatically archive chunks older than this many days. Set to 0 to disable auto-archiving."
+        }
+      }
+    },
+    "search": {
+      "type": "object",
+      "description": "Search system configuration",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["fts", "vector", "hybrid"],
+          "default": "fts",
+          "description": "Search mode: 'fts' for full-text search (faster, no dependencies), 'vector' for semantic search (requires embeddings), or 'hybrid' for both"
+        },
+        "embedding": {
+          "description": "Embedding provider configuration (required when mode is 'vector' or 'hybrid')",
+          "oneOf": [
+            { "$ref": "#/$defs/openaiEmbedding" },
+            { "$ref": "#/$defs/ollamaEmbedding" },
+            { "$ref": "#/$defs/opencodeEmbedding" },
+            { "$ref": "#/$defs/voyageEmbedding" },
+            { "$ref": "#/$defs/cohereEmbedding" }
+          ]
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "description": "Storage location configuration",
+      "additionalProperties": false,
+      "properties": {
+        "directory": {
+          "type": "string",
+          "default": "auto",
+          "description": "Storage directory. Use 'auto' to detect based on OpenCode installation, 'local' for <repo>/.opencode/memoir/, 'global' for ~/.local/share/opencode/project/<id>/memoir/, or a custom path (absolute or relative to repo root).",
+          "examples": ["auto", "local", "global", ".memoir", "/custom/path/memoir"]
+        },
+        "filename": {
+          "oneOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]+\\.db$",
+              "description": "Single shared database filename for both memory and history"
+            },
+            {
+              "type": "object",
+              "description": "Separate database filenames. Omit a key to disable that feature.",
+              "additionalProperties": false,
+              "properties": {
+                "memory": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]+\\.db$",
+                  "description": "Filename for memory/learning database. Omit to disable memory feature."
+                },
+                "history": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]+\\.db$",
+                  "description": "Filename for history/chunking database. Omit to disable history feature."
+                }
+              }
+            }
+          ],
+          "default": "memory.db",
+          "examples": [
+            "memory.db",
+            { "memory": "memories.db", "history": "history.db" },
+            { "memory": "memory.db" }
+          ]
+        },
+        "gitignore": {
+          "oneOf": [
+            {
+              "type": "boolean",
+              "description": "Apply to all databases"
+            },
+            {
+              "type": "object",
+              "description": "Configure per-database",
+              "additionalProperties": false,
+              "properties": {
+                "memory": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Add memory database to .gitignore"
+                },
+                "history": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Add history database to .gitignore"
+                }
+              }
+            }
+          ],
+          "default": true,
+          "description": "Automatically add database path(s) to .gitignore when using local storage. Set to false to commit database(s)."
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "additionalProperties": false,
+      "properties": {
+        "debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable verbose debug logging"
+        },
+        "file": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Log file path relative to the storage directory. Set to null to disable file logging."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "openaiEmbedding": {
+      "type": "object",
+      "description": "OpenAI embedding configuration",
+      "additionalProperties": false,
+      "required": ["provider", "model"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "const": "openai",
+          "description": "Use OpenAI's embedding API"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model to use (e.g., 'text-embedding-3-small', 'text-embedding-3-large')",
+          "examples": ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key (falls back to OPENAI_API_KEY env var)"
+        },
+        "baseUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Base URL for the API (for Azure OpenAI or compatible APIs)"
+        },
+        "dimensions": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Output dimensions (for models that support variable dimensions)"
+        }
+      }
+    },
+    "ollamaEmbedding": {
+      "type": "object",
+      "description": "Ollama embedding configuration for local models",
+      "additionalProperties": false,
+      "required": ["provider", "model"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "const": "ollama",
+          "description": "Use a locally running Ollama instance"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model to use (e.g., 'nomic-embed-text', 'mxbai-embed-large')",
+          "examples": ["nomic-embed-text", "mxbai-embed-large", "all-minilm"]
+        },
+        "baseUrl": {
+          "type": "string",
+          "format": "uri",
+          "default": "http://localhost:11434",
+          "description": "Base URL for Ollama API"
+        }
+      }
+    },
+    "opencodeEmbedding": {
+      "type": "object",
+      "description": "OpenCode embedding configuration",
+      "additionalProperties": false,
+      "required": ["provider"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "const": "opencode",
+          "description": "Use the OpenCode API for embeddings"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model to use (uses cheapest available if not specified)"
+        }
+      }
+    },
+    "voyageEmbedding": {
+      "type": "object",
+      "description": "Voyage AI embedding configuration",
+      "additionalProperties": false,
+      "required": ["provider", "model"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "const": "voyage",
+          "description": "Use Voyage's embedding API"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model to use (e.g., 'voyage-3', 'voyage-code-3')",
+          "examples": ["voyage-3", "voyage-3-lite", "voyage-code-3"]
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key (falls back to VOYAGE_API_KEY env var)"
+        }
+      }
+    },
+    "cohereEmbedding": {
+      "type": "object",
+      "description": "Cohere embedding configuration",
+      "additionalProperties": false,
+      "required": ["provider", "model"],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "const": "cohere",
+          "description": "Use Cohere's embedding API"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model to use (e.g., 'embed-english-v3.0', 'embed-multilingual-v3.0')",
+          "examples": ["embed-english-v3.0", "embed-multilingual-v3.0", "embed-english-light-v3.0"]
+        },
+        "apiKey": {
+          "type": "string",
+          "description": "API key (falls back to COHERE_API_KEY env var)"
+        },
+        "inputType": {
+          "type": "string",
+          "enum": ["search_document", "search_query", "classification", "clustering"],
+          "default": "search_document",
+          "description": "Input type for the embedding (affects how text is processed)"
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+      "storage": {
+        "directory": "local"
+      }
+    },
+    {
+      "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+      "storage": {
+        "directory": "local",
+        "gitignore": false
+      }
+    },
+    {
+      "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+      "storage": {
+        "directory": ".memoir"
+      }
+    },
+    {
+      "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+      "storage": {
+        "directory": "local",
+        "filename": { "memory": "memories.db", "history": "history.db" }
+      }
+    },
+    {
+      "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+      "storage": {
+        "filename": { "memory": "memory.db" }
+      }
+    },
+    {
+      "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+      "storage": {
+        "filename": { "memory": "memories.db", "history": "history.db" },
+        "gitignore": { "memory": false, "history": true }
+      }
+    },
+    {
+      "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+      "search": {
+        "mode": "vector",
+        "embedding": {
+          "provider": "openai",
+          "model": "text-embedding-3-small"
+        }
+      }
+    },
+    {
+      "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+      "search": {
+        "mode": "vector",
+        "embedding": {
+          "provider": "ollama",
+          "model": "nomic-embed-text"
+        }
+      }
+    },
+    {
+      "$schema": "https://bunkercache.github.io/memoir/schema/config.json",
+      "memory": {
+        "maxInject": 15,
+        "keywordDetection": true,
+        "customKeywords": ["note to self", "for future reference"]
+      },
+      "chunks": {
+        "maxCompactionContext": 15,
+        "autoArchiveDays": 90
+      },
+      "search": {
+        "mode": "hybrid",
+        "embedding": {
+          "provider": "opencode"
+        }
+      },
+      "storage": {
+        "directory": "local"
+      },
+      "logging": {
+        "debug": true
+      }
+    }
+  ]
+}

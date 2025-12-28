@@ -1,3 +1,6 @@
 #!/usr/bin/env bash
 #MISE description="Build the project"
+
+# Build the TypeScript bundle
+# SQL migration files are embedded via Bun's text import feature
 bun build ./src/index.ts --outdir dist --target bun

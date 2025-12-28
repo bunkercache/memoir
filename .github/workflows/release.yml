@@ -14,35 +14,35 @@ permissions:
 
 jobs:
   process:
+    # Skip if commit message contains [skip ci] or not the main repo
+    if: |
+      github.repository == 'bunkercache/memoir' &&
+      !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release-please.outputs.releases_created }}
-      prs_created: ${{ steps.release-please.outputs.prs_created }}
+      tag_name: ${{ steps.release-please.outputs.tag_name }}
+      sha: ${{ steps.release-please.outputs.sha }}
     steps:
-      - uses: google-github-actions/release-please-action@v4
+      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4.4.0
         id: release-please
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           release-type: node
-          skip-github-pull-request: false
 
   dispatch-publish:
     needs: process
     runs-on: ubuntu-latest
-    if: needs.process.outputs.releases_created == 'true' || needs.process.outputs.prs_created == 'true'
+    if: needs.process.outputs.releases_created == 'true'
     steps:
-      - name: Dispatch publish for releases
-        if: needs.process.outputs.releases_created == 'true'
-        uses: peter-evans/repository-dispatch@v2
+      - name: Dispatch publish for release
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           event-type: publish-package
-          client-payload: '{"tag": "latest"}'
-
-      - name: Dispatch publish for prerelease
-        if: needs.process.outputs.prs_created == 'true'
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          event-type: publish-package
-          client-payload: '{"tag": "next"}'
+          client-payload: >-
+            {
+              "tag": "latest",
+              "ref": "${{ needs.process.outputs.tag_name }}",
+              "sha": "${{ needs.process.outputs.sha }}"
+            }

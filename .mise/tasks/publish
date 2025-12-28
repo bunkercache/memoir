@@ -5,6 +5,17 @@
 
 set -e
 
+# Guard: Only allow publishing from main branch in CI
+if [ -n "$GITHUB_ACTIONS" ]; then
+  BRANCH="${GITHUB_REF_NAME:-unknown}"
+  # GITHUB_HEAD_REF is set for pull_request events, which we don't publish from
+  if [ "$BRANCH" != "main" ] && [ -z "$GITHUB_HEAD_REF" ]; then
+    echo "ERROR: Publishing only allowed from main branch (current: $BRANCH)"
+    exit 1
+  fi
+  echo "Branch check passed: $BRANCH"
+fi
+
 echo "Publishing to npm"
 echo " > with tag: ${usage_tag}..."
 echo " > npm version: $(npm --version)"

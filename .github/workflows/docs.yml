@@ -1,0 +1,162 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/generate-docs.ts'
+      - 'schema/**'
+      - 'src/types.ts'
+      - 'README.md'
+      - '.github/workflows/docs.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., v1.0.0, dev)'
+        required: false
+        default: 'dev'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages'
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Determine version
+        id: version
+        run: |
+          # Release event → use tag name (e.g., v1.0.0)
+          # Push to main → dev (unreleased development docs)
+          # Manual dispatch → use provided version
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            IS_LATEST="true"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+            IS_LATEST="false"
+          else
+            # Push to main branch = dev docs
+            VERSION="dev"
+            IS_LATEST="false"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "is_latest=$IS_LATEST" >> $GITHUB_OUTPUT
+          echo "Publishing docs for version: $VERSION (is_latest: $IS_LATEST)"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Restore existing versions
+        continue-on-error: true
+        run: |
+          mkdir -p _site
+
+          # Try to fetch existing gh-pages content to preserve other versions
+          git fetch origin gh-pages:gh-pages 2>/dev/null || exit 0
+
+          # Checkout only the version directories we want to preserve
+          for dir in $(git ls-tree --name-only gh-pages | grep -E '^(v[0-9]|dev|latest)'); do
+            git checkout gh-pages -- "$dir" 2>/dev/null && mv "$dir" "_site/" || true
+          done
+
+          # Also get versions.json if it exists
+          git checkout gh-pages -- versions.json 2>/dev/null && mv versions.json _site/ || true
+
+      - name: Generate docs
+        env:
+          DOCS_VERSION: ${{ steps.version.outputs.version }}
+          DOCS_BASE_URL: https://bunkercache.github.io/memoir
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          IS_LATEST="${{ steps.version.outputs.is_latest }}"
+
+          # Generate docs to dist-docs/
+          bun run scripts/generate-docs.ts
+
+          # Move generated docs to versioned directory
+          rm -rf "_site/$VERSION"
+          mv dist-docs "_site/$VERSION"
+
+          # If this is a release, also update /latest/ to point to this version
+          if [[ "$IS_LATEST" == "true" ]]; then
+            rm -rf "_site/latest"
+            cp -r "_site/$VERSION" "_site/latest"
+            
+            # Update the $id in latest to say "latest" not the version
+            sed -i "s|/$VERSION/schema|/latest/schema|g" "_site/latest/schema/config.schema.json"
+            
+            # Also copy to root for default access
+            cp "_site/latest/index.html" "_site/"
+            cp -r "_site/latest/schema" "_site/"
+          fi
+
+      - name: Update versions.json
+        run: |
+          # Build versions.json with proper sorting:
+          # 1. latest (alias for most recent release)
+          # 2. dev (main branch, unreleased)
+          # 3. Versioned releases in descending order (v1.1.0, v1.0.0, ...)
+
+          echo "[" > _site/versions.json
+          FIRST=true
+
+          # latest first (if exists)
+          if [[ -d "_site/latest" ]]; then
+            echo '  "latest"' >> _site/versions.json
+            FIRST=false
+          fi
+
+          # dev second (main branch)
+          if [[ -d "_site/dev" ]]; then
+            if [[ "$FIRST" != "true" ]]; then echo "," >> _site/versions.json; fi
+            echo '  "dev"' >> _site/versions.json
+            FIRST=false
+          fi
+
+          # Then versioned releases (sorted descending)
+          for v in $(ls -d _site/v* 2>/dev/null | xargs -n1 basename 2>/dev/null | sort -rV); do
+            if [[ "$FIRST" != "true" ]]; then echo "," >> _site/versions.json; fi
+            echo "  \"$v\"" >> _site/versions.json
+            FIRST=false
+          done
+
+          echo "" >> _site/versions.json
+          echo "]" >> _site/versions.json
+
+          echo "Available versions:"
+          cat _site/versions.json
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

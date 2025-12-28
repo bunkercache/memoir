@@ -3,12 +3,43 @@
 ## Build & Test Commands
 
 - **Build**: `mise run build` or `bun build ./src/index.ts --outdir dist --target bun`
-- **Test**: `mise run test` or `bun test`
-- **Single Test**: `bun test BackgroundTask.test.ts` (use file glob pattern)
-- **Watch Mode**: `bun test --watch`
+- **Test**: `mise run test` or `bun --bun run vitest run`
+- **Single Test**: `bun --bun run vitest run src/tools/memoir.test.ts`
+- **Watch Mode**: `bun --bun run vitest --watch`
 - **Lint**: `mise run lint` (eslint)
 - **Fix Lint**: `mise run lint:fix` (eslint --fix)
 - **Format**: `mise run format` (prettier)
+
+## Local Plugin Testing
+
+To test the Memoir plugin locally within this project:
+
+1. Build the plugin: `mise run build`
+2. Create the plugin loader (if not exists):
+   ```bash
+   mkdir -p .opencode/plugin
+   ```
+3. Create `.opencode/plugin/memoir.ts`:
+   ```typescript
+   import { MemoirPlugin } from '../../dist/index.js';
+   export { MemoirPlugin };
+   ```
+4. OpenCode will automatically load the plugin from `.opencode/plugin/`
+
+The `.opencode/plugin/` directory is gitignored for local development only.
+
+### Plugin Loader Features
+
+The local plugin loader (`.opencode/plugin/memoir.ts`) includes:
+
+- **Auto-build**: If `dist/index.js` doesn't exist, it will attempt to build automatically
+- **Disable via env var**: Set `BUNKERCACHE_MEMOIR_DISABLED=1` to disable the plugin
+- **Stub fallback**: If the build fails, a no-op stub plugin is used
+
+### Environment Variables
+
+- `BUNKERCACHE_MEMOIR_DISABLED=1` - Disable the local Memoir plugin (used in CI workflows)
+- `MEMOIR_FORCE_LOCAL=1` - Force Memoir to use local storage (auto-set by local plugin loader)
 
 ## Code Style Guidelines
 
@@ -54,12 +85,35 @@
 - Style: Descriptive nested test cases with clear expectations
 - Assertion library: `expect()` (vitest)
 
-## Memory
-
-- Store temporary data in `.memory/` directory (gitignored)
-
 ## Project Context
 
 - **Type**: ES Module package for OpenCode plugin system
 - **Target**: Bun runtime, ES2021+
-- **Purpose**: Background task execution and lifecycle management
+- **Purpose**: Local-first, repo-scoped memory plugin with hierarchical session history
+
+## Architecture
+
+Memoir provides two interrelated systems:
+
+1. **Project Memory** - Persistent learnings about the codebase (preferences, patterns, gotchas)
+2. **Session History** - Hierarchical chunk tree for traversing compacted conversation history
+
+Key technologies:
+
+- **SQLite** with Bun's built-in driver
+- **sqlite-vec** for vector search (future)
+- **FTS5** for full-text search with BM25 ranking
+
+## GitHub Workflows
+
+- `pr.yml` - CI for pull requests (lint, test, build)
+- `opencode.yml` - `/oc` and `/opencode` commands in issues/PRs
+- `review.yml` - `/review` command for code review against STYLEGUIDE.md
+- `stale-issues.yml` - Auto-close stale issues
+- `release.yml` / `release-next.yml` - Release automation with release-please
+- `publish.yml` - Publish to npm on release
+
+## Reusable Actions
+
+- `.github/actions/setup-bun` - Bun setup with dependency caching
+- `.github/actions/checkout-v6-compat` - Migrate v6 checkout credentials to local git config

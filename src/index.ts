@@ -1,144 +1,180 @@
 /**
- * OpenCode Plugin Template
+ * Memoir - A smart memory management plugin for OpenCode
  *
- * This is an example plugin that demonstrates the plugin capabilities:
- * - Custom tools (tools callable by the LLM)
- * - Custom slash commands (user-invokable /commands loaded from .md files)
- * - Config hooks (modify config at runtime)
- *
- * Replace this with your own plugin implementation.
+ * Provides two interrelated systems:
+ * 1. Project Memory - Persistent learnings about the codebase
+ * 2. Session History - Hierarchical context tree for traversing compacted history
  */
 
-import type { Plugin } from '@opencode-ai/plugin';
-import { tool } from '@opencode-ai/plugin';
-import path from 'path';
+import type { Plugin, PluginInput } from '@opencode-ai/plugin';
 
-// ============================================================
-// COMMAND LOADER
-// Loads .md files from src/command/ directory as slash commands
-// ============================================================
+// Config
+import { ConfigService } from './config/index.ts';
+import { resolveStoragePaths, updateGitignore } from './config/paths.ts';
 
-interface CommandFrontmatter {
-  description?: string;
-  agent?: string;
-  model?: string;
-  subtask?: boolean;
-}
+// Logging
+import { Logger } from './logging/index.ts';
 
-interface ParsedCommand {
-  name: string;
-  frontmatter: CommandFrontmatter;
-  template: string;
+// Re-export Logger for other modules
+export { Logger } from './logging/index.ts';
+
+// Database
+import { DatabaseService } from './db/index.ts';
+
+// Memory
+import { initializeMemoryService } from './memory/index.ts';
+
+// Chunks
+import { initializeChunkService } from './chunks/index.ts';
+
+// Hooks
+import { handleChatMessage } from './hooks/chat-message.ts';
+import { handleCompaction } from './hooks/compaction.ts';
+import { handleEvent, setOpenCodeClient } from './hooks/events.ts';
+
+// Tools
+import { memoirTool } from './tools/memoir.ts';
+import { expandTool } from './tools/expand.ts';
+import { historyTool } from './tools/history.ts';
+
+/**
+ * Enabled features based on storage configuration.
+ */
+interface EnabledFeatures {
+  memory: boolean;
+  history: boolean;
 }
 
 /**
- * Parse YAML frontmatter from a markdown file
- * Format:
- * ---
- * description: Command description
- * agent: optional-agent
- * ---
- * Template content here
+ * Initialize all Memoir services.
+ *
+ * Sets up the configuration, database, memory, and chunk services
+ * in the correct order with proper dependency injection.
+ *
+ * @param worktree - The repository root path
+ * @param projectId - The OpenCode project identifier
+ * @returns Which features are enabled
  */
-function parseFrontmatter(content: string): { frontmatter: CommandFrontmatter; body: string } {
-  const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
-  const match = content.match(frontmatterRegex);
+function initializeServices(worktree: string, projectId: string): EnabledFeatures {
+  // 1. Initialize config
+  const configService = ConfigService.initialize(worktree);
 
-  if (!match) {
-    return { frontmatter: {}, body: content.trim() };
+  const resolvedConfig = {
+    memory: configService.memory,
+    chunks: configService.chunks,
+    search: configService.search,
+    storage: configService.storage,
+    logging: configService.logging,
+  };
+
+  // 2. Resolve storage paths
+  const paths = resolveStoragePaths(worktree, projectId, resolvedConfig);
+
+  // 3. Initialize logger (uses storage directory)
+  const storageDir = paths.memoryDb?.path
+    ? paths.memoryDb.path.replace(/\/[^/]+$/, '')
+    : paths.historyDb?.path
+      ? paths.historyDb.path.replace(/\/[^/]+$/, '')
+      : worktree;
+  Logger.initialize(resolvedConfig.logging, storageDir);
+
+  // 4. Update gitignore if needed
+  updateGitignore(worktree, paths);
+
+  // 5. Initialize databases and services based on enabled features
+  const features: EnabledFeatures = {
+    memory: paths.memoryDb !== null,
+    history: paths.historyDb !== null,
+  };
+
+  // If using shared database, initialize once
+  if (paths.sharedDatabase && paths.memoryDb) {
+    DatabaseService.initialize(paths.memoryDb.path);
+    const db = DatabaseService.get().getDatabase();
+
+    if (features.memory) {
+      initializeMemoryService(db, resolvedConfig);
+    }
+    if (features.history) {
+      initializeChunkService(db, resolvedConfig);
+    }
+  } else {
+    // Separate databases
+    if (paths.memoryDb) {
+      DatabaseService.initialize(paths.memoryDb.path, 'memory');
+      const memoryDb = DatabaseService.get('memory').getDatabase();
+      initializeMemoryService(memoryDb, resolvedConfig);
+    }
+
+    if (paths.historyDb) {
+      DatabaseService.initialize(paths.historyDb.path, 'history');
+      const historyDb = DatabaseService.get('history').getDatabase();
+      initializeChunkService(historyDb, resolvedConfig);
+    }
   }
 
-  const [, yamlContent, body] = match;
-  const frontmatter: CommandFrontmatter = {};
-
-  // Simple YAML parsing for key: value pairs
-  for (const line of yamlContent.split('\n')) {
-    const colonIndex = line.indexOf(':');
-    if (colonIndex === -1) continue;
-
-    const key = line.slice(0, colonIndex).trim();
-    const value = line.slice(colonIndex + 1).trim();
-
-    if (key === 'description') frontmatter.description = value;
-    if (key === 'agent') frontmatter.agent = value;
-    if (key === 'model') frontmatter.model = value;
-    if (key === 'subtask') frontmatter.subtask = value === 'true';
-  }
-
-  return { frontmatter, body: body.trim() };
+  return features;
 }
 
 /**
- * Load all command .md files from the command directory
+ * Memoir Plugin for OpenCode
+ *
+ * A smart memory management plugin that supports nested aggregation of memory,
+ * summaries, and file changes that compact in layers with upstream references.
  */
-async function loadCommands(): Promise<ParsedCommand[]> {
-  const commands: ParsedCommand[] = [];
-  const commandDir = path.join(import.meta.dir, 'command');
-  const glob = new Bun.Glob('**/*.md');
+export const MemoirPlugin: Plugin = async (ctx: PluginInput) => {
+  const { project, worktree, client } = ctx;
 
-  for await (const file of glob.scan({ cwd: commandDir, absolute: true })) {
-    const content = await Bun.file(file).text();
-    const { frontmatter, body } = parseFrontmatter(content);
+  // Set up logging client first (before services init so we can log during init)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  Logger.setClient(client as any);
 
-    // Extract command name from filename (e.g., "hello.md" -> "hello")
-    const relativePath = path.relative(commandDir, file);
-    const name = relativePath.replace(/\.md$/, '').replace(/\//g, '-');
+  // Initialize all services
+  initializeServices(worktree, project.id);
 
-    commands.push({
-      name,
-      frontmatter,
-      template: body,
-    });
-  }
-
-  return commands;
-}
-
-export const ExamplePlugin: Plugin = async () => {
-  // ============================================================
-  // LOAD COMMANDS FROM .MD FILES
-  // Commands are loaded at plugin initialization time
-  // ============================================================
-  const commands = await loadCommands();
-
-  // ============================================================
-  // EXAMPLE TOOL
-  // Tools are callable by the LLM during conversations
-  // ============================================================
-  const exampleTool = tool({
-    description: 'An example tool that echoes back the input message',
-    args: {
-      message: tool.schema.string().describe('The message to echo'),
-    },
-    async execute(args) {
-      return `Echo: ${args.message}`;
-    },
-  });
+  // Store the client for use in event handlers
+  setOpenCodeClient(client);
 
   return {
-    // Register custom tools
+    // Event hook - handles session.idle, session.compacted, session.deleted, message.updated
+    event: handleEvent,
+
+    // Chat message hook - injects memories, detects keywords, tracks messages
+    'chat.message': handleChatMessage,
+
+    // Compaction hook - injects chunk references into compaction context
+    'experimental.session.compacting': handleCompaction,
+
+    // Tools
     tool: {
-      example_tool: exampleTool,
-    },
-
-    // ============================================================
-    // CONFIG HOOK
-    // Modify config at runtime - use this to inject custom commands
-    // ============================================================
-    async config(config) {
-      // Initialize the command record if it doesn't exist
-      config.command = config.command ?? {};
-
-      // Register all loaded commands
-      for (const cmd of commands) {
-        config.command[cmd.name] = {
-          template: cmd.template,
-          description: cmd.frontmatter.description,
-          agent: cmd.frontmatter.agent,
-          model: cmd.frontmatter.model,
-          subtask: cmd.frontmatter.subtask,
-        };
-      }
+      memoir: memoirTool,
+      memoir_expand: expandTool,
+      memoir_history: historyTool,
     },
   };
 };
+
+// Default export for plugin loading
+export default MemoirPlugin;
+
+// Re-export types for external use
+export type {
+  Memory,
+  MemoryType,
+  MemorySource,
+  Chunk,
+  ChunkStatus,
+  ChunkContent,
+  ChunkMessage,
+  ChunkMessagePart,
+  ChunkOutcome,
+  MemoirConfig,
+  ResolvedMemoirConfig,
+  StoragePaths,
+} from './types.ts';
+
+// Re-export services for advanced usage
+export { getMemoryService } from './memory/index.ts';
+export { getChunkService, getMessageTracker } from './chunks/index.ts';
+export { ConfigService } from './config/index.ts';
+export { DatabaseService } from './db/index.ts';

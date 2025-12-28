@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 #MISE description="Run tests"
-bun test
+# Use bun --bun to ensure Bun's module resolution for @opencode-ai/plugin
+bun --bun run vitest run

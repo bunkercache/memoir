@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-docs/
 *.log
 .DS_Store
 .env
@@ -9,4 +10,12 @@ coverage/
 .eslintcache
 .bun/
 .bun.lockb
-.memory/
+
+# Local OpenCode plugin for development testing
+.opencode/plugin/
+
+# Memoir plugin databases
+.opencode/memoir/memory.db
+
+# Local test files
+temp/

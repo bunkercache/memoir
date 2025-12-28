@@ -1,0 +1,113 @@
+name: Release Next
+
+on:
+  pull_request:
+    types: [edited]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  handle-checkbox:
+    # Trigger on PR edit when checkbox is checked
+    # Only on release PRs created by release-please
+    if: |
+      github.repository == 'bunkercache/memoir' &&
+      github.event_name == 'pull_request' &&
+      startsWith(github.event.pull_request.title, 'chore: release') &&
+      github.event.pull_request.user.login == 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check permissions
+        id: check-permissions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PERMISSION=$(gh api "repos/${{ github.repository }}/collaborators/${{ github.event.sender.login }}/permission" -q '.permission' 2>/dev/null || echo "none")
+          if [[ "$PERMISSION" == "admin" || "$PERMISSION" == "write" ]]; then
+            echo "authorized=true" >> $GITHUB_OUTPUT
+          else
+            echo "authorized=false" >> $GITHUB_OUTPUT
+            echo "::notice::User ${{ github.event.sender.login }} does not have write access (permission: $PERMISSION)"
+          fi
+
+      - name: Check if checkbox was checked
+        if: steps.check-permissions.outputs.authorized == 'true'
+        id: checkbox
+        run: |
+          BODY='${{ github.event.pull_request.body }}'
+          if echo "$BODY" | grep -q '\[x\] \*\*Publish preview release\*\*'; then
+            echo "checked=true" >> $GITHUB_OUTPUT
+          else
+            echo "checked=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Dispatch publish
+        if: steps.check-permissions.outputs.authorized == 'true' && steps.checkbox.outputs.checked == 'true'
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: publish-package
+          client-payload: >-
+            {
+              "tag": "next",
+              "pr_number": "${{ github.event.pull_request.number }}",
+              "triggered_by": "${{ github.event.sender.login }}"
+            }
+
+      - name: Uncheck the box
+        if: steps.check-permissions.outputs.authorized == 'true' && steps.checkbox.outputs.checked == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get current body and uncheck the box
+          BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q '.body')
+          NEW_BODY=$(echo "$BODY" | sed 's/\[x\] \*\*Publish preview release\*\*/[ ] **Publish preview release**/')
+          gh pr edit ${{ github.event.pull_request.number }} --body "$NEW_BODY"
+
+  handle-command:
+    # Trigger on /release-next comment
+    # Only on release PRs
+    # Only OWNER or MEMBER can trigger
+    if: |
+      github.repository == 'bunkercache/memoir' &&
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/release-next') &&
+      contains(fromJson('["OWNER","MEMBER"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify release PR
+        id: verify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_TITLE=$(gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json title -q '.title')
+          if [[ "$PR_TITLE" != chore:\ release* ]]; then
+            echo "::error::This command only works on release PRs"
+            gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
+              -X POST -f content='confused'
+            exit 1
+          fi
+
+      - name: React to comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -X POST -f content='rocket'
+
+      - name: Dispatch publish
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697 # v4.0.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: publish-package
+          client-payload: >-
+            {
+              "tag": "next",
+              "pr_number": "${{ github.event.issue.number }}",
+              "triggered_by": "${{ github.event.comment.user.login }}"
+            }

@@ -13,34 +13,131 @@ on:
   repository_dispatch:
     types: [publish-package]
 
+# Disable local Memoir plugin in CI to avoid conflicts
+env:
+  BUNKERCACHE_MEMOIR_DISABLED: '1'
+
 permissions:
   id-token: write
   contents: read
+  pull-requests: write
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    if: github.repository == 'bunkercache/memoir'
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
-      - uses: actions/checkout@v4
+      - name: Parse inputs
+        id: inputs
+        uses: simenandre/setup-inputs@00a2f5d3135898b400343ff87d99b7841e6e4592 # v1.1.0
 
-      - uses: jdx/mise-action@d6e32c1796099e0f1f3ac741c220a8b7eae9e5dd
+      - name: Validate branch
+        run: |
+          # For repository_dispatch, we trust the caller (release.yml or release-next.yml)
+          # For workflow_dispatch, check we're on main
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            if [[ "${{ github.ref }}" != "refs/heads/main" ]]; then
+              echo "::error::Publishing only allowed from main branch"
+              exit 1
+            fi
+          fi
+
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          ref: ${{ steps.inputs.outputs.ref || github.sha }}
+
+      - uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # v3.5.1
         with:
           install: true
           cache: true
           experimental: true
 
+      - name: Configure npm for OIDC
+        run: npm config set registry https://registry.npmjs.org/
+
+      - name: Get base version
+        id: base-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate next version
+        if: steps.inputs.outputs.tag == 'next'
+        id: next-version
+        run: |
+          BASE_VERSION="${{ steps.base-version.outputs.version }}"
+
+          # Get existing versions from npm (handle case where package doesn't exist yet)
+          VERSIONS=$(npm view @bunkercache/memoir versions --json 2>/dev/null || echo "[]")
+
+          # Find highest -next.N for this base version
+          NEXT_NUM=$(echo "$VERSIONS" | node -e "
+            const fs = require('fs');
+            const versions = JSON.parse(fs.readFileSync(0, 'utf8'));
+            const base = '${BASE_VERSION}';
+            const nextVersions = Array.isArray(versions)
+              ? versions.filter(v => v.startsWith(base + '-next.'))
+              : [];
+            const nums = nextVersions.map(v => parseInt(v.split('-next.')[1]) || 0);
+            console.log(Math.max(0, ...nums) + 1);
+          ")
+
+          NEXT_VERSION="${BASE_VERSION}-next.${NEXT_NUM}"
+          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing next version: $NEXT_VERSION"
+
+          # Update package.json temporarily
+          npm version "$NEXT_VERSION" --no-git-tag-version
+
+      - name: Validate version (for latest tag)
+        if: steps.inputs.outputs.tag == 'latest' || steps.inputs.outputs.tag == ''
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "Publishing version: $VERSION"
+
       - name: Build
         run: mise run build
 
-      - id: inputs
-        uses: simenandre/setup-inputs@v1
+      - name: Publish
+        run: mise run publish --tag "${{ steps.inputs.outputs.tag || 'latest' }}"
 
-      - name: Publish to npm with OIDC
+      - name: Get published version
+        id: published
         run: |
-          TAG="${{ steps.inputs.outputs.tag }}"
-          if [ -z "$TAG" ]; then
-            TAG="latest"
-          fi
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-          echo "Publishing with tag: $TAG"
-          mise run publish --tag "$TAG"
+      - name: Post tracking comment
+        if: steps.inputs.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.published.outputs.version }}"
+          TRIGGERED_BY="${{ steps.inputs.outputs.triggered_by }}"
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          PR_NUMBER="${{ steps.inputs.outputs.pr_number }}"
+
+          # Check if tracking comment exists
+          COMMENT_ID=$(gh api "repos/${{ github.repository }}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.body | startswith("🚀 **Preview release")) | .id' | head -1)
+
+          NEW_ROW="| \`${VERSION}\` | \`next\` | @${TRIGGERED_BY} | ${TIMESTAMP} |"
+
+          if [[ -n "$COMMENT_ID" ]]; then
+            # Append to existing comment
+            EXISTING=$(gh api "repos/${{ github.repository }}/issues/comments/${COMMENT_ID}" -q '.body')
+            NEW_BODY="${EXISTING}
+          ${NEW_ROW}"
+            gh api "repos/${{ github.repository }}/issues/comments/${COMMENT_ID}" \
+              -X PATCH -f body="$NEW_BODY"
+          else
+            # Create new comment
+            BODY="🚀 **Preview releases published**
+
+          | Version | Tag | Published By | Timestamp |
+          | ------- | --- | ------------ | --------- |
+          ${NEW_ROW}
+
+          Install with: \`npm install @bunkercache/memoir@next\`"
+            gh pr comment "${PR_NUMBER}" --body "$BODY"
+          fi

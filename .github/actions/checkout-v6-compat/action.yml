@@ -1,0 +1,47 @@
+name: 'Migrate v6 Checkout Credentials'
+description: |
+  Migrates actions/checkout v6 credentials to local git config for tools expecting v4-style config.
+
+  Use this action immediately after actions/checkout@v6 to ensure compatibility with tools
+  that expect credentials in .git/config directly (e.g., OpenCode GitHub action).
+
+  Example:
+    - uses: actions/checkout@v6
+    - uses: ./.github/actions/checkout-v6-compat
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Migrate v6 credentials to local config
+      shell: bash
+      run: |
+        # actions/checkout v6 stores credentials in a separate file under $RUNNER_TEMP
+        # and references it via includeIf.gitdir entries. Some tools (like OpenCode's
+        # GitHub action) expect credentials in .git/config directly (v4 behavior).
+        #
+        # This step extracts the credential and writes it to local config for compatibility.
+
+        # Find the credentials config file path from includeIf entries
+        CRED_FILE=$(git config --local --get-regexp '^includeIf\.gitdir:.*\.path$' 2>/dev/null | head -1 | awk '{print $2}')
+
+        if [[ -z "$CRED_FILE" ]]; then
+          echo "No includeIf credentials found (persist-credentials may be false)"
+          exit 0
+        fi
+
+        if [[ ! -f "$CRED_FILE" ]]; then
+          echo "Credentials file not found: $CRED_FILE"
+          exit 0
+        fi
+
+        # Extract the extraheader value from the credentials file
+        EXTRA_HEADER=$(git config --file "$CRED_FILE" --get 'http.https://github.com/.extraheader' 2>/dev/null)
+
+        if [[ -z "$EXTRA_HEADER" ]]; then
+          echo "No extraheader found in credentials file"
+          exit 0
+        fi
+
+        # Write it directly to local config (what v4 used to do)
+        git config --local 'http.https://github.com/.extraheader' "$EXTRA_HEADER"
+        echo "Migrated v6 credentials to local config for compatibility"

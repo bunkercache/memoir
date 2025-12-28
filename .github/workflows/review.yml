@@ -1,0 +1,111 @@
+name: Code Review
+
+on:
+  issue_comment:
+    types: [created]
+
+# Disable local Memoir plugin in CI to avoid conflicts
+env:
+  BUNKERCACHE_MEMOIR_DISABLED: '1'
+
+jobs:
+  review:
+    if: |
+      github.repository == 'bunkercache/memoir' &&
+      github.event.issue.pull_request &&
+      startsWith(github.event.comment.body, '/review') &&
+      contains(fromJson('["OWNER","MEMBER"]'), github.event.comment.author_association)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Get PR number
+        id: pr-number
+        run: |
+          echo "number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 1
+
+      - uses: ./.github/actions/setup-bun
+
+      - name: Install opencode
+        run: curl -fsSL https://opencode.ai/install | bash
+
+      - name: Add opencode to PATH
+        run: echo "$HOME/.opencode/bin" >> $GITHUB_PATH
+
+      - name: Get PR details
+        id: pr-details
+        run: |
+          gh api /repos/${{ github.repository }}/pulls/${{ steps.pr-number.outputs.number }} > pr_data.json
+          echo "title=$(jq -r .title pr_data.json)" >> $GITHUB_OUTPUT
+          echo "sha=$(jq -r .head.sha pr_data.json)" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Review PR against style guide
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENCODE_PERMISSION: '{ "bash": { "gh*": "allow", "gh pr review*": "deny", "*": "deny" } }'
+          PR_TITLE: ${{ steps.pr-details.outputs.title }}
+        run: |
+          PR_BODY=$(jq -r .body pr_data.json)
+          opencode run -m opencode/claude-sonnet-4-20250514 "A pull request needs code review: '${PR_TITLE}'
+
+          <pr-number>
+          ${{ steps.pr-number.outputs.number }}
+          </pr-number>
+
+          <pr-description>
+          $PR_BODY
+          </pr-description>
+
+          Please review all code changes in this pull request against STYLEGUIDE.md. Also check for bugs, logic errors, and potential improvements.
+
+          IMPORTANT: Read the full file for each changed file to get proper context, not just the diff.
+
+          ## Review Focus Areas
+
+          1. **Early Returns / Nesting**: Check for deep nesting. Code should use early returns to keep the happy path at the lowest indentation level.
+          2. **Const vs Let**: Prefer const. Only use let when reassignment is truly needed.
+          3. **Type Safety**: Check for proper type annotations, avoid 'any' where possible.
+          4. **Error Handling**: Errors should be type-checked before accessing properties.
+          5. **Naming**: Variables and functions should be descriptive and self-documenting.
+          6. **Documentation**: Exported functions should have JSDoc comments.
+          7. **Testing**: New functionality should have tests.
+
+          ## Review Guidelines
+
+          - Only comment on ACTUAL violations. Don't be overly pedantic.
+          - Early returns are good - don't complain about missing else if code already returns.
+          - Excessive nesting is bad - complain about this regardless of else usage.
+          - 'let' is sometimes the simplest option - only flag if there's obvious overuse.
+          - Make it clear that suggestions are suggestions, not requirements.
+          - If suggesting a code change, ensure it's valid TypeScript with correct syntax.
+          - Prefer leaving comments over suggested changes when possible.
+
+          ## Creating Comments
+
+          Use the gh CLI to create comments on specific lines:
+
+          \`\`\`
+          gh api \\
+            --method POST \\
+            -H \"Accept: application/vnd.github+json\" \\
+            -H \"X-GitHub-Api-Version: 2022-11-28\" \\
+            /repos/${{ github.repository }}/pulls/${{ steps.pr-number.outputs.number }}/comments \\
+            -f 'body=[your comment]' \\
+            -f 'commit_id=${{ steps.pr-details.outputs.sha }}' \\
+            -f 'path=[path/to/file.ts]' \\
+            -F 'line=[line number]' \\
+            -f 'side=RIGHT'
+          \`\`\`
+
+          If the code follows all guidelines and you find no issues, comment on the issue with just: 'lgtm'
+
+          Do NOT use 'gh pr review' - only use the comments API shown above."
