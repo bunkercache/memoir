@@ -10,11 +10,8 @@ import { readFileSync } from 'node:fs';
 export default defineConfig({
   test: {
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
+    maxWorkers: 1,
+    isolate: false,
   },
   plugins: [
     {
