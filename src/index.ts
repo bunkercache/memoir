@@ -15,9 +15,6 @@ import { resolveStoragePaths, updateGitignore } from './config/paths.ts';
 // Logging
 import { Logger } from './logging/index.ts';
 
-// Re-export Logger for other modules
-export { Logger } from './logging/index.ts';
-
 // Database
 import { DatabaseService } from './db/index.ts';
 
@@ -172,9 +169,3 @@ export type {
   ResolvedMemoirConfig,
   StoragePaths,
 } from './types.ts';
-
-// Re-export services for advanced usage
-export { getMemoryService } from './memory/index.ts';
-export { getChunkService, getMessageTracker } from './chunks/index.ts';
-export { ConfigService } from './config/index.ts';
-export { DatabaseService } from './db/index.ts';
