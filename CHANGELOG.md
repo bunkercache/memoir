@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/bunkercache/opencode-memoir/compare/v0.2.2...v0.2.3) (2025-12-28)
+
+
+### Bug Fixes
+
+* remove class exports that break OpenCode plugin loader ([#31](https://github.com/bunkercache/opencode-memoir/issues/31)) ([4637fae](https://github.com/bunkercache/opencode-memoir/commit/4637fae92f7c95f1233247a9cc2cfaf866c4fd12))
+
 ## [0.2.2](https://github.com/bunkercache/opencode-memoir/compare/v0.2.1...v0.2.2) (2025-12-28)
 
 
