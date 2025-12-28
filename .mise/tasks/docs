@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#MISE description="Generate documentation site"
+#MISE alias="docs"
+
+set -euo pipefail
+
+# Default to 'dev' for local generation (main branch = unreleased)
+# Use DOCS_VERSION=v1.0.0 or DOCS_VERSION=latest to generate versioned docs
+DOCS_VERSION="${DOCS_VERSION:-dev}"
+DOCS_BASE_URL="${DOCS_BASE_URL:-https://bunkercache.github.io/memoir}"
+
+export DOCS_VERSION
+export DOCS_BASE_URL
+
+echo "Generating docs for version: $DOCS_VERSION"
+bun run scripts/generate-docs.ts
+
+echo ""
+echo "Docs generated in dist-docs/"
+echo "To preview: cd dist-docs && python3 -m http.server 8080"
