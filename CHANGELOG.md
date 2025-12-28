@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.0](https://github.com/bunkercache/opencode-memoir/compare/v0.2.3...v0.3.0) (2025-12-28)
+
+
+### Features
+
+* improve memoir_history with session scoping and browsing mode ([#35](https://github.com/bunkercache/opencode-memoir/issues/35)) ([cbf69cc](https://github.com/bunkercache/opencode-memoir/commit/cbf69cc11a36f66d5e76b226180ef2a535b9f37e))
+
+
+### Bug Fixes
+
+* include SQLite WAL mode files (-shm, -wal) in gitignore ([#33](https://github.com/bunkercache/opencode-memoir/issues/33)) ([7bb8643](https://github.com/bunkercache/opencode-memoir/commit/7bb86433a37d72379f7836fe2ef5f19663181ba5))
+
 ## [0.2.3](https://github.com/bunkercache/opencode-memoir/compare/v0.2.2...v0.2.3) (2025-12-28)
 
 

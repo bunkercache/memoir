@@ -1,6 +1,6 @@
 {
   "name": "@bunkercache/opencode-memoir",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "A smart memory management plugin for OpenCode that supports nested aggregation of memory, summaries, and file changes that compact in layers with upstream references for lookups.",
   "author": {
     "name": "Chris Tunbridge",
