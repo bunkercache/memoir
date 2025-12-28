@@ -95,6 +95,9 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "Publishing version: $VERSION"
 
+      - name: Install dependencies
+        run: mise run setup
+
       - name: Build
         run: mise run build
 

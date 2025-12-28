@@ -65,9 +65,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Get current body and uncheck the box
-          BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q '.body')
+          BODY=$(gh pr view ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --json body -q '.body')
           NEW_BODY=$(echo "$BODY" | sed 's/\[x\] \*\*Publish preview release\*\*/[ ] **Publish preview release**/')
-          gh pr edit ${{ github.event.pull_request.number }} --body "$NEW_BODY"
+          gh pr edit ${{ github.event.pull_request.number }} --repo ${{ github.repository }} --body "$NEW_BODY"
 
   handle-command:
     # Trigger on /release-next comment
