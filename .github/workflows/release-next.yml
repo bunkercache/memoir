@@ -17,7 +17,8 @@ jobs:
     if: |
       github.repository == 'bunkercache/memoir' &&
       github.event_name == 'pull_request' &&
-      startsWith(github.event.pull_request.title, 'chore: release') &&
+      startsWith(github.event.pull_request.title, 'chore') &&
+      contains(github.event.pull_request.title, 'release') &&
       github.event.pull_request.user.login == 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
@@ -86,7 +87,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_TITLE=$(gh pr view ${{ github.event.issue.number }} --repo ${{ github.repository }} --json title -q '.title')
-          if [[ "$PR_TITLE" != chore:\ release* ]]; then
+          # Must start with "chore" AND contain "release"
+          if [[ "$PR_TITLE" != chore* ]] || [[ "$PR_TITLE" != *release* ]]; then
             echo "::error::This command only works on release PRs"
             gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
               -X POST -f content='confused'
