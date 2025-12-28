@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/bunkercache/opencode-memoir/compare/v0.2.1...v0.2.2) (2025-12-28)
+
+
+### Bug Fixes
+
+* add main and module fields for better module resolution ([#29](https://github.com/bunkercache/opencode-memoir/issues/29)) ([4fb56df](https://github.com/bunkercache/opencode-memoir/commit/4fb56df8c73ea883f572e7ef0179565758189bb6))
+
 ## [0.2.1](https://github.com/bunkercache/opencode-memoir/compare/v0.2.0...v0.2.1) (2025-12-28)
 
 
