@@ -423,7 +423,7 @@ describe('Storage Path Resolution', () => {
      * Positive test: resolveStoragePaths should calculate gitignore paths for local databases.
      * Objective: Verify that gitignore paths are computed correctly.
      */
-    it('should calculate gitignore paths for local databases', () => {
+    it('should calculate gitignore paths for local databases including WAL files', () => {
       // Arrange
       const opencodeDir = join(tempDir, '.opencode');
       mkdirSync(opencodeDir, { recursive: true });
@@ -432,9 +432,10 @@ describe('Storage Path Resolution', () => {
       // Act
       const result = resolveStoragePaths(tempDir, projectId, DEFAULT_CONFIG);
 
-      // Assert
-      expect(result.gitignorePaths.length).toBeGreaterThan(0);
-      expect(result.gitignorePaths[0]).toBe('.opencode/memoir/memory.db');
+      // Assert - should include main db and WAL mode companion files
+      expect(result.gitignorePaths).toContain('.opencode/memoir/memory.db');
+      expect(result.gitignorePaths).toContain('.opencode/memoir/memory.db-shm');
+      expect(result.gitignorePaths).toContain('.opencode/memoir/memory.db-wal');
     });
 
     /**

@@ -264,12 +264,15 @@ export function resolveStoragePaths(
     normalize(memoryDb.path) === normalize(historyDb.path);
 
   // Calculate gitignore paths (only for local databases with gitignore enabled)
+  // Include WAL mode companion files (-shm, -wal)
   const gitignorePaths: string[] = [];
 
   if (memoryDb?.isLocal && memoryDb.manageGitignore) {
     const relativePath = getGitignoreRelativePath(memoryDb.path, worktree);
     if (relativePath) {
       gitignorePaths.push(relativePath);
+      gitignorePaths.push(`${relativePath}-shm`);
+      gitignorePaths.push(`${relativePath}-wal`);
     }
   }
 
@@ -277,6 +280,8 @@ export function resolveStoragePaths(
     const relativePath = getGitignoreRelativePath(historyDb.path, worktree);
     if (relativePath && !gitignorePaths.includes(relativePath)) {
       gitignorePaths.push(relativePath);
+      gitignorePaths.push(`${relativePath}-shm`);
+      gitignorePaths.push(`${relativePath}-wal`);
     }
   }
 
