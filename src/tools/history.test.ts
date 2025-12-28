@@ -5,6 +5,7 @@
  * - Searches session history for past work
  * - Returns chunk summaries with IDs for expansion
  * - Supports filtering by session, depth, and limit
+ * - Defaults to current session, with options for all sessions or specific ones
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -26,25 +27,31 @@ import { createTestDatabase } from '../db/test-utils.ts';
 // TEST HELPERS
 // =============================================================================
 
-/** Mock ToolContext for testing */
-const mockContext = {
-  sessionID: 'test-session',
-  messageID: 'test-message',
-  agent: 'test-agent',
-  abort: new AbortController().signal,
-};
+/** Create a mock ToolContext for testing */
+function createMockContext(sessionID: string = 'test-session') {
+  return {
+    sessionID,
+    messageID: 'test-message',
+    agent: 'test-agent',
+    abort: new AbortController().signal,
+  };
+}
 
 function createTestConfig(): ResolvedMemoirConfig {
   return { ...DEFAULT_CONFIG };
 }
 
-async function executeTool(args: {
-  query: string;
-  session_id?: string;
-  depth?: number;
-  limit?: number;
-}): Promise<string> {
-  return await historyTool.execute(args, mockContext);
+async function executeTool(
+  args: {
+    query?: string;
+    all_sessions?: boolean;
+    session_ids?: string[];
+    depth?: number;
+    limit?: number;
+  } = {},
+  sessionID: string = 'test-session'
+): Promise<string> {
+  return await historyTool.execute(args, createMockContext(sessionID));
 }
 
 function parseJsonResponse(response: string): Record<string, unknown> {
@@ -114,8 +121,8 @@ describe('historyTool', () => {
       chunkService.create('session-1', createTestChunkContent('Fixing database connection bug'));
       chunkService.create('session-1', createTestChunkContent('Adding unit tests'));
 
-      // Act
-      const response = await executeTool({ query: 'authentication' });
+      // Act - use all_sessions since chunks are in 'session-1', not the mock context session
+      const response = await executeTool({ query: 'authentication', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
@@ -138,7 +145,7 @@ describe('historyTool', () => {
       );
 
       // Act
-      const response = await executeTool({ query: 'TypeScript' });
+      const response = await executeTool({ query: 'TypeScript', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
@@ -159,7 +166,7 @@ describe('historyTool', () => {
       chunkService.create('session-1', createTestChunkContent('React component development'));
 
       // Act
-      const response = await executeTool({ query: 'React' });
+      const response = await executeTool({ query: 'React', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
@@ -178,7 +185,7 @@ describe('historyTool', () => {
       chunkService.create('session-1', createTestChunkContent('API endpoint implementation'));
 
       // Act
-      const response = await executeTool({ query: 'API' });
+      const response = await executeTool({ query: 'API', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
@@ -200,7 +207,7 @@ describe('historyTool', () => {
       chunkService.compact('session-1', 'Completed user authentication feature');
 
       // Act
-      const response = await executeTool({ query: 'authentication' });
+      const response = await executeTool({ query: 'authentication', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
@@ -212,21 +219,100 @@ describe('historyTool', () => {
     });
   });
 
-  describe('filtering', () => {
+  describe('browsing without query', () => {
     /**
-     * Objective: Verify that search can filter by session_id.
-     * This test ensures session isolation works.
+     * Objective: Verify that omitting query returns recent chunks.
      */
-    it('should filter by session_id', async () => {
+    it('should return recent chunks when no query provided', async () => {
+      // Arrange
+      const chunkService = getChunkService();
+      chunkService.create('session-1', createTestChunkContent('First task'));
+      chunkService.create('session-1', createTestChunkContent('Second task'));
+
+      // Act - no query, should return recent chunks
+      const response = await executeTool({}, 'session-1');
+      const result = parseJsonResponse(response);
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.mode).toBe('recent');
+      expect(result.count).toBe(2);
+      const chunks = result.chunks as Array<Record<string, unknown>>;
+      expect(chunks.length).toBe(2);
+    });
+
+    /**
+     * Objective: Verify that empty string query also returns recent chunks.
+     */
+    it('should treat empty string as no query', async () => {
+      // Arrange
+      const chunkService = getChunkService();
+      chunkService.create('session-1', createTestChunkContent('Some work'));
+
+      // Act
+      const response = await executeTool({ query: '   ' }, 'session-1');
+      const result = parseJsonResponse(response);
+
+      // Assert
+      expect(result.mode).toBe('recent');
+    });
+  });
+
+  describe('session scoping', () => {
+    /**
+     * Objective: Verify that search defaults to current session only.
+     * This is the new default behavior.
+     */
+    it('should default to current session only', async () => {
+      // Arrange
+      const chunkService = getChunkService();
+      chunkService.create('current-session', createTestChunkContent('Work in current session'));
+      chunkService.create('other-session', createTestChunkContent('Work in other session'));
+
+      // Act - search from 'current-session' context, should only find current session chunks
+      const response = await executeTool({ query: 'Work' }, 'current-session');
+      const result = parseJsonResponse(response);
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.scope).toBe('current session');
+      const chunks = result.chunks as Array<Record<string, unknown>>;
+      expect(chunks.every((c) => c.sessionId === 'current-session')).toBe(true);
+    });
+
+    /**
+     * Objective: Verify that all_sessions: true searches all sessions.
+     */
+    it('should search all sessions when all_sessions is true', async () => {
       // Arrange
       const chunkService = getChunkService();
       chunkService.create('session-a', createTestChunkContent('Work in session A'));
       chunkService.create('session-b', createTestChunkContent('Work in session B'));
 
       // Act
+      const response = await executeTool({ query: 'Work', all_sessions: true });
+      const result = parseJsonResponse(response);
+
+      // Assert
+      expect(result.success).toBe(true);
+      expect(result.scope).toBe('all sessions');
+      expect(result.count).toBeGreaterThanOrEqual(2);
+    });
+
+    /**
+     * Objective: Verify that session_ids filters to specific sessions.
+     */
+    it('should filter by session_ids', async () => {
+      // Arrange
+      const chunkService = getChunkService();
+      chunkService.create('session-a', createTestChunkContent('Work in session A'));
+      chunkService.create('session-b', createTestChunkContent('Work in session B'));
+      chunkService.create('session-c', createTestChunkContent('Work in session C'));
+
+      // Act - only search session-a
       const response = await executeTool({
         query: 'Work',
-        session_id: 'session-a',
+        session_ids: ['session-a'],
       });
       const result = parseJsonResponse(response);
 
@@ -235,7 +321,9 @@ describe('historyTool', () => {
       const chunks = result.chunks as Array<Record<string, unknown>>;
       expect(chunks.every((c) => c.sessionId === 'session-a')).toBe(true);
     });
+  });
 
+  describe('filtering', () => {
     /**
      * Objective: Verify that search can filter by depth.
      * This test ensures hierarchical filtering works.
@@ -255,6 +343,7 @@ describe('historyTool', () => {
       const response = await executeTool({
         query: 'Summary',
         depth: 1,
+        all_sessions: true,
       });
       const result = parseJsonResponse(response);
 
@@ -279,6 +368,7 @@ describe('historyTool', () => {
       const response = await executeTool({
         query: 'Task',
         limit: 3,
+        all_sessions: true,
       });
       const result = parseJsonResponse(response);
 
@@ -307,7 +397,7 @@ describe('historyTool', () => {
       // Act: Filter by session and depth
       const response = await executeTool({
         query: 'Session',
-        session_id: 'session-a',
+        session_ids: ['session-a'],
         depth: 1,
         limit: 5,
       });
@@ -340,23 +430,25 @@ describe('historyTool', () => {
       // Assert
       expect(result.success).toBe(true);
       expect(result.count).toBe(0);
-      expect(result.message).toBe('No matching chunks found');
+      expect(result.message).toContain('No matches');
     });
 
     /**
-     * Objective: Verify that no hint is included when no results.
-     * This test ensures clean output for empty results.
+     * Objective: Verify that hint is included when no results in current session.
+     * This test ensures users know to try all_sessions.
      */
-    it('should not include hint when no results', async () => {
-      // Arrange: No chunks created
+    it('should include hint about all_sessions when no results in current session', async () => {
+      // Arrange: Create chunks in a different session
+      const chunkService = getChunkService();
+      chunkService.create('other-session', createTestChunkContent('Some work'));
 
-      // Act
-      const response = await executeTool({ query: 'nothing here' });
+      // Act - search from a different session
+      const response = await executeTool({ query: 'work' }, 'test-session');
       const result = parseJsonResponse(response);
 
       // Assert
-      expect(result.hint).toBeUndefined();
-      expect(result.chunks).toBeUndefined();
+      expect(result.count).toBe(0);
+      expect(result.hint).toContain('all_sessions');
     });
   });
 
@@ -373,7 +465,7 @@ describe('historyTool', () => {
       // Act
       const response = await executeTool({
         query: 'work',
-        session_id: 'non-existent-session',
+        session_ids: ['non-existent-session'],
       });
       const result = parseJsonResponse(response);
 
@@ -397,6 +489,7 @@ describe('historyTool', () => {
       const response = await executeTool({
         query: 'task',
         depth: 5,
+        all_sessions: true,
       });
       const result = parseJsonResponse(response);
 
@@ -417,7 +510,7 @@ describe('historyTool', () => {
       chunkService.create('session-1', createTestChunkContent('Task without summary'));
 
       // Act
-      const response = await executeTool({ query: 'Task' });
+      const response = await executeTool({ query: 'Task', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
@@ -437,7 +530,7 @@ describe('historyTool', () => {
       chunkService.create('session-1', createTestChunkContent('Test task for estimation'));
 
       // Act
-      const response = await executeTool({ query: 'Test' });
+      const response = await executeTool({ query: 'Test', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
@@ -456,7 +549,7 @@ describe('historyTool', () => {
       chunkService.create('session-1', createTestChunkContent('Task for expansion estimation'));
 
       // Act
-      const response = await executeTool({ query: 'Task' });
+      const response = await executeTool({ query: 'Task', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
@@ -469,17 +562,17 @@ describe('historyTool', () => {
      * Objective: Verify that results include hint about preview mode.
      * This test ensures users know about preview_only option.
      */
-    it('should include hint about preview mode', async () => {
+    it('should include hint about memoir_expand', async () => {
       // Arrange
       const chunkService = getChunkService();
       chunkService.create('session-1', createTestChunkContent('Hint test task'));
 
       // Act
-      const response = await executeTool({ query: 'Hint' });
+      const response = await executeTool({ query: 'Hint', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
-      expect(result.hint).toContain('preview_only');
+      expect(result.hint).toContain('memoir_expand');
     });
 
     /**
@@ -497,7 +590,7 @@ describe('historyTool', () => {
       }
 
       // Act
-      const response = await executeTool({ query: 'searchable' });
+      const response = await executeTool({ query: 'searchable', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert: Should have warning about expanding many results
@@ -537,7 +630,7 @@ describe('historyTool', () => {
       chunkService.create('session-1', content);
 
       // Act
-      const response = await executeTool({ query: 'Stats' });
+      const response = await executeTool({ query: 'Stats', all_sessions: true });
       const result = parseJsonResponse(response);
 
       // Assert
