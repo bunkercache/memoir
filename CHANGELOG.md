@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.4.1](https://github.com/bunkercache/opencode-memoir/compare/v0.4.0...v0.4.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* **deps:** update dependency @opencode-ai/plugin to v1.0.223 ([#41](https://github.com/bunkercache/opencode-memoir/issues/41)) ([76a13f0](https://github.com/bunkercache/opencode-memoir/commit/76a13f09342a481bab2ec87bdbd6f67af9c591c3))
+* **deps:** update dependency @opencode-ai/plugin to v1.1.39 ([#46](https://github.com/bunkercache/opencode-memoir/issues/46)) ([df8e68e](https://github.com/bunkercache/opencode-memoir/commit/df8e68eff4ffce596bf882c7a3cf3ba44fffe975))
+
+
+### Miscellaneous
+
+* **deps:** update actions/cache action to v5.0.2 ([#51](https://github.com/bunkercache/opencode-memoir/issues/51)) ([f5f4944](https://github.com/bunkercache/opencode-memoir/commit/f5f4944225d08e6b02470288bdc79ba5448018c9))
+* **deps:** update actions/checkout action to v6.0.2 ([#53](https://github.com/bunkercache/opencode-memoir/issues/53)) ([b21c16f](https://github.com/bunkercache/opencode-memoir/commit/b21c16fa6a3cb62da7ac6ad6d704f5a0ff9e0333))
+* **deps:** update anomalyco/opencode action to v1.1.39 ([#45](https://github.com/bunkercache/opencode-memoir/issues/45)) ([c77a568](https://github.com/bunkercache/opencode-memoir/commit/c77a5683a50f6c72258f7c670c7d88d7c9da5742))
+* **deps:** update dependency bun to v1.3.7 ([#49](https://github.com/bunkercache/opencode-memoir/issues/49)) ([4afab5b](https://github.com/bunkercache/opencode-memoir/commit/4afab5be2129af5818be9dd9ad35032a78b39fac))
+* **deps:** update dependency usage to v2.11.0 ([#43](https://github.com/bunkercache/opencode-memoir/issues/43)) ([627bef1](https://github.com/bunkercache/opencode-memoir/commit/627bef1b6c8a382171103394a9c8dc9fd37128f0))
+* **deps:** update dependency usage to v2.15.0 ([#50](https://github.com/bunkercache/opencode-memoir/issues/50)) ([51de4f6](https://github.com/bunkercache/opencode-memoir/commit/51de4f6f84bfefbed31b294c7fd7e8dc7f0881a1))
+* **deps:** update jdx/mise-action action to v3.6.1 ([#52](https://github.com/bunkercache/opencode-memoir/issues/52)) ([b7e9f78](https://github.com/bunkercache/opencode-memoir/commit/b7e9f7825435bd485224349c396dd922a2a55181))
+* **deps:** update oven-sh/setup-bun action to v2.1.2 ([#47](https://github.com/bunkercache/opencode-memoir/issues/47)) ([4c9aac1](https://github.com/bunkercache/opencode-memoir/commit/4c9aac1753fe9e7ad4a2a84450aceb88371f6c32))
+* **deps:** update sst/opencode action to v1.0.222 ([#40](https://github.com/bunkercache/opencode-memoir/issues/40)) ([2ba5162](https://github.com/bunkercache/opencode-memoir/commit/2ba516298082dd5895632d6d028465c671a93d7b))
+* **deps:** update typescript-eslint monorepo to v8.51.0 ([#42](https://github.com/bunkercache/opencode-memoir/issues/42)) ([79dcc16](https://github.com/bunkercache/opencode-memoir/commit/79dcc1605dc05d2e35624542004add06614512f5))
+* **deps:** update typescript-eslint monorepo to v8.54.0 ([#48](https://github.com/bunkercache/opencode-memoir/issues/48)) ([b90dc9d](https://github.com/bunkercache/opencode-memoir/commit/b90dc9d72b544a17b043344dc42acdae2c9d5d55))
+
 ## [0.4.0](https://github.com/bunkercache/opencode-memoir/compare/v0.3.1...v0.4.0) (2025-12-28)
 
 
