@@ -28,7 +28,7 @@
     "dist"
   ],
   "dependencies": {
-    "@opencode-ai/plugin": "1.0.223",
+    "@opencode-ai/plugin": "1.1.39",
     "sqlite-vec": "^0.1.6"
   },
   "devDependencies": {
