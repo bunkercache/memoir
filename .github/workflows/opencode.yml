@@ -32,7 +32,7 @@ jobs:
       - uses: ./.github/actions/setup-bun
 
       - name: Run opencode
-        uses: anomalyco/opencode/github@6eb2bdd665b4654521b88c7d82eddc062b1411ed # v1.1.39
+        uses: anomalyco/opencode/github@9cfdbbb1afa2f183f3fb0507457297b317261990 # v1.1.41
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           OPENCODE_PERMISSION: '{"bash": "deny"}'
