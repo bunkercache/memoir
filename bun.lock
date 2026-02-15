@@ -5,7 +5,7 @@
     "": {
       "name": "{{pluginName}}",
       "dependencies": {
-        "@opencode-ai/plugin": "1.1.39",
+        "@opencode-ai/plugin": "1.2.4",
         "sqlite-vec": "^0.1.6",
       },
       "devDependencies": {
@@ -104,9 +104,9 @@
 
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
-    "@opencode-ai/plugin": ["@opencode-ai/plugin@1.1.39", "", { "dependencies": { "@opencode-ai/sdk": "1.1.39", "zod": "4.1.8" } }, "sha512-PAdVYNZeRW9pCi4+t+Dp88hoPgEIiS5uJT31hUXLhZEfBvgaLNP38WhXwRNWbwSaNXudWOu/a5DzYNbU84uvHQ=="],
+    "@opencode-ai/plugin": ["@opencode-ai/plugin@1.2.4", "", { "dependencies": { "@opencode-ai/sdk": "1.2.4", "zod": "4.1.8" } }, "sha512-FfRybm1Ujzkt8EQDtxZKVEA88EI8XaAu3ikViC8DYSP3lJaF++8isN3vmlSqCi+A+O2/5xd2yQ0yq3tmJ2WVhw=="],
 
-    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.1.39", "", {}, "sha512-EUYBZAci0bzG9+a7JVINmqAqis71ipG2/D3juvmvvKFyu0YBIT/6b+g3+p82Eb5CU2dujxpPdJJCaexZ1389eQ=="],
+    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.2.4", "", {}, "sha512-IPgtBpif46wTviC3HQxkjS4M/1tZSnRmD/6aEF3lL88MT+PAqKA30G+AhBlpvXBITq9EmjO4gjzM59ly2z7mYQ=="],
 
     "@pkgr/core": ["@pkgr/core@0.2.9", "", {}, "sha512-QNqXyfVS2wm9hweSYD2O7F0G06uurj9kZ96TRQE5Y9hU7+tgdZwIkbAKc5Ocy1HxEY2kuDQa6cQ1WRs/O5LFKA=="],
 
